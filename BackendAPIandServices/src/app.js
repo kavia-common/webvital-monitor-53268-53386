@@ -7,6 +7,16 @@ const routes = require('./routes');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('../swagger');
 
+// Early diagnostics for common misconfigurations
+if (!process.env.DATABASE_URL) {
+  // eslint-disable-next-line no-console
+  console.warn('DATABASE_URL is not set. The API may start, but DB-backed routes will fail. Set DATABASE_URL in .env');
+}
+if (!process.env.JWT_SECRET || !process.env.REFRESH_TOKEN_SECRET) {
+  // eslint-disable-next-line no-console
+  console.warn('JWT secrets are missing. Set JWT_SECRET and REFRESH_TOKEN_SECRET in .env for auth endpoints to work.');
+}
+
 // Initialize express app
 const app = express();
 

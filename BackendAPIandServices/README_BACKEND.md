@@ -17,8 +17,12 @@ Quick start:
    - npx prisma migrate dev --name init
 4. Start workers: npm run queue:workers
 5. Start API: npm run dev
-6. Open Swagger: http://localhost:3000/docs
+6. Open Swagger: http://localhost:3001/docs
 
 Notes:
+- Default port is 3001. You can override with PORT in .env.
 - Ensure Redis is running and REDIS_URL is set.
 - Ensure PostgreSQL (Supabase) DATABASE_URL is set.
+- Ensure JWT_SECRET and REFRESH_TOKEN_SECRET are set for auth to work.
+- Optional integrations (Slack, Twilio, SMTP) are gracefully skipped if not configured.
+- Use GET /__health/db to validate DB connectivity at runtime.

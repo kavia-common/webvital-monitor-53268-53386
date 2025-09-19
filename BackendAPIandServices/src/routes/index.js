@@ -7,6 +7,7 @@ const prefController = require('../controllers/preferences');
 const agencyController = require('../controllers/agencies');
 const notesController = require('../controllers/notes');
 const reportsController = require('../controllers/reports');
+const prisma = require('../utils/prisma');
 
 const router = express.Router();
 
@@ -33,6 +34,20 @@ const router = express.Router();
  *         description: Service health check passed
  */
 router.get('/', healthController.check.bind(healthController));
+
+/**
+ * Lightweight DB health probe (non-auth) to help diagnose startup issues.
+ * Returns 200 if Prisma can reach the database.
+ */
+router.get('/__health/db', async (req, res) => {
+  try {
+    // A trivial query; if no connection, this will throw.
+    await prisma.$queryRaw`SELECT 1`;
+    return res.status(200).json({ ok: true });
+  } catch (e) {
+    return res.status(503).json({ ok: false, error: e.message });
+  }
+});
 
 /**
  * @swagger
