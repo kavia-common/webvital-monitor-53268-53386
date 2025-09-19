@@ -71,11 +71,39 @@ app.use('/docs', swaggerUi.serve, (req, res, next) => {
   swaggerUi.setup(dynamicSpec)(req, res, next);
 });
 
-// Parse JSON request body
+/**
+ * Parse JSON request body
+ */
 app.use(express.json({ limit: '1mb' }));
 
-// Mount routes
-app.use('/', routes);
+/**
+ * Mount routes
+ * The routes module exports both rootRouter (for '/', '/__health/db') and apiRouter (for versioned API).
+ */
+const { rootRouter, apiRouter, listRegisteredRoutes } = routes;
+
+// Root-level health and docs helpers
+app.use('/', rootRouter);
+
+// Versioned API
+app.use('/api/v1', apiRouter);
+
+// Not found handler with basic diagnostics to help identify wrong paths in clients
+app.use((req, res, next) => {
+  if (req.path === '/api/v1/auth/register' && req.method === 'POST') {
+    // If we ever land here, something intercepted earlier; still respond 404 style hint
+  }
+  const registered = listRegisteredRoutes ? listRegisteredRoutes() : [];
+  return res.status(404).json({
+    status: 'not_found',
+    message: 'Route not found',
+    method: req.method,
+    path: req.originalUrl,
+    hint: 'Check that the frontend uses the correct base path and HTTP method.',
+    exampleAuthRegister: 'POST /api/v1/auth/register',
+    availableSample: registered.slice(0, 10), // show a few routes for quick orientation
+  });
+});
 
 // Error handling middleware
 // eslint-disable-next-line no-unused-vars

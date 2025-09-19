@@ -9,8 +9,10 @@ const notesController = require('../controllers/notes');
 const reportsController = require('../controllers/reports');
 const prisma = require('../utils/prisma');
 
-const router = express.Router();
+// Root router: non-versioned routes like health and db health probe
+const rootRouter = express.Router();
 
+// Swagger tags kept here for generator to pick up
 /**
  * @swagger
  * tags:
@@ -33,21 +35,23 @@ const router = express.Router();
  *       200:
  *         description: Service health check passed
  */
-router.get('/', healthController.check.bind(healthController));
+rootRouter.get('/', healthController.check.bind(healthController));
 
 /**
  * Lightweight DB health probe (non-auth) to help diagnose startup issues.
  * Returns 200 if Prisma can reach the database.
  */
-router.get('/__health/db', async (req, res) => {
+rootRouter.get('/__health/db', async (req, res) => {
   try {
-    // A trivial query; if no connection, this will throw.
     await prisma.$queryRaw`SELECT 1`;
     return res.status(200).json({ ok: true });
   } catch (e) {
     return res.status(503).json({ ok: false, error: e.message });
   }
 });
+
+// API router (versioned): define endpoints without '/api/v1' prefix. App mounts this at '/api/v1'.
+const apiRouter = express.Router();
 
 /**
  * @swagger
@@ -56,7 +60,7 @@ router.get('/__health/db', async (req, res) => {
  *     summary: Register user with email/password
  *     tags: [Auth]
  */
-router.post('/api/v1/auth/register', authController.register);
+apiRouter.post('/auth/register', authController.register);
 
 /**
  * @swagger
@@ -65,7 +69,7 @@ router.post('/api/v1/auth/register', authController.register);
  *     summary: Login user with email/password
  *     tags: [Auth]
  */
-router.post('/api/v1/auth/login', authController.login);
+apiRouter.post('/auth/login', authController.login);
 
 /**
  * @swagger
@@ -74,7 +78,7 @@ router.post('/api/v1/auth/login', authController.login);
  *     summary: Google OAuth login via id_token
  *     tags: [Auth]
  */
-router.post('/api/v1/auth/google', authController.googleAuth);
+apiRouter.post('/auth/google', authController.googleAuth);
 
 /**
  * @swagger
@@ -83,7 +87,7 @@ router.post('/api/v1/auth/google', authController.googleAuth);
  *     summary: Refresh access token
  *     tags: [Auth]
  */
-router.post('/api/v1/auth/refresh', authController.refresh);
+apiRouter.post('/auth/refresh', authController.refresh);
 
 /**
  * @swagger
@@ -94,7 +98,7 @@ router.post('/api/v1/auth/refresh', authController.refresh);
  *     security:
  *       - bearerAuth: []
  */
-router.get('/api/v1/auth/me', authenticate, authController.me);
+apiRouter.get('/auth/me', authenticate, authController.me);
 
 /**
  * @swagger
@@ -105,7 +109,7 @@ router.get('/api/v1/auth/me', authenticate, authController.me);
  *     security:
  *       - bearerAuth: []
  */
-router.get('/api/v1/websites', authenticate, websiteController.list);
+apiRouter.get('/websites', authenticate, websiteController.list);
 
 /**
  * @swagger
@@ -116,7 +120,7 @@ router.get('/api/v1/websites', authenticate, websiteController.list);
  *     security:
  *       - bearerAuth: []
  */
-router.post('/api/v1/websites', authenticate, websiteController.create);
+apiRouter.post('/websites', authenticate, websiteController.create);
 
 /**
  * @swagger
@@ -127,7 +131,7 @@ router.post('/api/v1/websites', authenticate, websiteController.create);
  *     security:
  *       - bearerAuth: []
  */
-router.put('/api/v1/websites/:id', authenticate, websiteController.update);
+apiRouter.put('/websites/:id', authenticate, websiteController.update);
 
 /**
  * @swagger
@@ -138,7 +142,7 @@ router.put('/api/v1/websites/:id', authenticate, websiteController.update);
  *     security:
  *       - bearerAuth: []
  */
-router.delete('/api/v1/websites/:id', authenticate, websiteController.remove);
+apiRouter.delete('/websites/:id', authenticate, websiteController.remove);
 
 /**
  * @swagger
@@ -149,7 +153,7 @@ router.delete('/api/v1/websites/:id', authenticate, websiteController.remove);
  *     security:
  *       - bearerAuth: []
  */
-router.get('/api/v1/websites/:id/results', authenticate, websiteController.results);
+apiRouter.get('/websites/:id/results', authenticate, websiteController.results);
 
 /**
  * @swagger
@@ -160,7 +164,7 @@ router.get('/api/v1/websites/:id/results', authenticate, websiteController.resul
  *     security:
  *       - bearerAuth: []
  */
-router.get('/api/v1/preferences', authenticate, prefController.getPreferences);
+apiRouter.get('/preferences', authenticate, prefController.getPreferences);
 
 /**
  * @swagger
@@ -171,7 +175,7 @@ router.get('/api/v1/preferences', authenticate, prefController.getPreferences);
  *     security:
  *       - bearerAuth: []
  */
-router.put('/api/v1/preferences', authenticate, prefController.updatePreferences);
+apiRouter.put('/preferences', authenticate, prefController.updatePreferences);
 
 /**
  * @swagger
@@ -182,7 +186,7 @@ router.put('/api/v1/preferences', authenticate, prefController.updatePreferences
  *     security:
  *       - bearerAuth: []
  */
-router.get('/api/v1/agencies', authenticate, agencyController.listAgencies);
+apiRouter.get('/agencies', authenticate, agencyController.listAgencies);
 
 /**
  * @swagger
@@ -193,7 +197,7 @@ router.get('/api/v1/agencies', authenticate, agencyController.listAgencies);
  *     security:
  *       - bearerAuth: []
  */
-router.post('/api/v1/agencies', authenticate, agencyController.createAgency);
+apiRouter.post('/agencies', authenticate, agencyController.createAgency);
 
 /**
  * @swagger
@@ -204,7 +208,7 @@ router.post('/api/v1/agencies', authenticate, agencyController.createAgency);
  *     security:
  *       - bearerAuth: []
  */
-router.get('/api/v1/agencies/:agencyId/members', authenticate, agencyController.listMembers);
+apiRouter.get('/agencies/:agencyId/members', authenticate, agencyController.listMembers);
 
 /**
  * @swagger
@@ -215,7 +219,7 @@ router.get('/api/v1/agencies/:agencyId/members', authenticate, agencyController.
  *     security:
  *       - bearerAuth: []
  */
-router.post('/api/v1/agencies/:agencyId/members', authenticate, agencyController.addMember);
+apiRouter.post('/agencies/:agencyId/members', authenticate, agencyController.addMember);
 
 /**
  * @swagger
@@ -226,7 +230,7 @@ router.post('/api/v1/agencies/:agencyId/members', authenticate, agencyController
  *     security:
  *       - bearerAuth: []
  */
-router.get('/api/v1/websites/:websiteId/notes', authenticate, notesController.listNotes);
+apiRouter.get('/websites/:websiteId/notes', authenticate, notesController.listNotes);
 
 /**
  * @swagger
@@ -237,7 +241,7 @@ router.get('/api/v1/websites/:websiteId/notes', authenticate, notesController.li
  *     security:
  *       - bearerAuth: []
  */
-router.post('/api/v1/websites/:websiteId/notes', authenticate, notesController.addNote);
+apiRouter.post('/websites/:websiteId/notes', authenticate, notesController.addNote);
 
 /**
  * @swagger
@@ -248,6 +252,22 @@ router.post('/api/v1/websites/:websiteId/notes', authenticate, notesController.a
  *     security:
  *       - bearerAuth: []
  */
-router.get('/api/v1/websites/:id/report.pdf', authenticate, reportsController.generateWebsiteReport);
+apiRouter.get('/websites/:id/report.pdf', authenticate, reportsController.generateWebsiteReport);
 
-module.exports = router;
+// Utility to list registered routes for diagnostics
+function listRegisteredRoutes() {
+  const out = [];
+  const collect = (base, r) => {
+    r.stack?.forEach((l) => {
+      if (l.route && l.route.path) {
+        const methods = Object.keys(l.route.methods || {}).map((m) => m.toUpperCase());
+        out.push({ path: base + l.route.path, methods });
+      }
+    });
+  };
+  collect('/', rootRouter);
+  collect('/api/v1', apiRouter);
+  return out;
+}
+
+module.exports = { rootRouter, apiRouter, listRegisteredRoutes };
