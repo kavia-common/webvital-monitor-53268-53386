@@ -1,0 +1,205 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SubscriptionTier {
+  STARTER
+  PROFESSIONAL
+  AGENCY
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+model User {
+  id                 String   @id @default(cuid())
+  email              String   @unique
+  passwordHash       String?
+  googleId           String?  @unique
+  name               String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  subscriptionTier   SubscriptionTier @default(STARTER)
+  agencyMemberships  AgencyMember[]
+  websites           Website[]
+  alertPreferences   AlertPreference?
+  notifications      Notification[]
+  refreshTokens      RefreshToken[]
+  auditLogs          AuditLog[]
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+}
+
+model Agency {
+  id           String         @id @default(cuid())
+  name         String
+  owner        User           @relation(fields: [ownerId], references: [id])
+  ownerId      String
+  members      AgencyMember[]
+  websites     Website[]
+  notes        Note[]
+  reports      Report[]
+  brandingLogo String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model AgencyMember {
+  id        String @id @default(cuid())
+  agency    Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  agencyId  String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  role      Role   @default(VIEWER)
+  createdAt DateTime @default(now())
+  @@unique([agencyId, userId])
+}
+
+model Website {
+  id                String   @id @default(cuid())
+  url               String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId            String
+  agency            Agency?  @relation(fields: [agencyId], references: [id])
+  agencyId          String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  monitoringIntervalMinutes Int @default(5)
+  isActive          Boolean  @default(true)
+  lastStatus        Int?
+  lastCheckedAt     DateTime?
+  performanceData   PerformanceResult[]
+  uptimeChecks      UptimeCheck[]
+  sslChecks         SSLCheck[]
+  seoScans          SEOScan[]
+  notes             Note[]
+  alerts            Alert[]
+}
+
+model PerformanceResult {
+  id         String   @id @default(cuid())
+  website    Website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  websiteId  String
+  strategy   String   // mobile/desktop
+  lcp        Float?
+  fid        Float?
+  cls        Float?
+  performanceScore Float?
+  raw        Json?
+  createdAt  DateTime @default(now())
+}
+
+model UptimeCheck {
+  id         String   @id @default(cuid())
+  website    Website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  websiteId  String
+  statusCode Int
+  responseMs Int?
+  ok         Boolean
+  createdAt  DateTime @default(now())
+}
+
+model SSLCheck {
+  id         String   @id @default(cuid())
+  website    Website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  websiteId  String
+  validUntil DateTime?
+  daysLeft   Int?
+  ok         Boolean
+  createdAt  DateTime @default(now())
+}
+
+model SEOScan {
+  id         String   @id @default(cuid())
+  website    Website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  websiteId  String
+  brokenLinks Int     @default(0)
+  metaIssues  Int     @default(0)
+  raw         Json?
+  createdAt   DateTime @default(now())
+}
+
+model AlertPreference {
+  id             String  @id @default(cuid())
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String  @unique
+  emailEnabled   Boolean @default(true)
+  slackEnabled   Boolean @default(false)
+  smsEnabled     Boolean @default(false)
+  slackChannel   String?
+  phoneNumber    String?
+  perfThreshold  Float? // score threshold
+  lcpThresholdMs Int?
+  responseTimeThresholdMs Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Alert {
+  id          String   @id @default(cuid())
+  website     Website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  websiteId   String
+  type        String
+  message     String
+  severity    String
+  createdAt   DateTime @default(now())
+  notifications Notification[]
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  alert       Alert    @relation(fields: [alertId], references: [id], onDelete: Cascade)
+  alertId     String
+  channel     String   // email, slack, sms
+  success     Boolean
+  sentAt      DateTime @default(now())
+  error       String?
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  website   Website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  websiteId String
+  author    User     @relation(fields: [authorId], references: [id])
+  authorId  String
+  content   String
+  createdAt DateTime @default(now())
+}
+
+model Report {
+  id        String   @id @default(cuid())
+  agency    Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  agencyId  String
+  title     String
+  filePath  String
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  user      User?    @relation(fields: [userId], references: [id])
+  userId    String?
+  action    String
+  entity    String?
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+}
